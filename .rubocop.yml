@@ -1,0 +1,12 @@
+# Extensions
+require:
+  - rubocop-rspec
+
+# Enable any new cops
+AllCops:
+  NewCops: enable
+
+RSpec/DescribeClass:
+  Exclude:
+    - 'spec/health_checks/live_check_spec.rb'
+    - 'spec/health_checks/ready_check_spec.rb'

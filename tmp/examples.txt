@@ -1,0 +1,6 @@
+example_id                                    | status | run_time        |
+--------------------------------------------- | ------ | --------------- |
+./spec/health_checks/live_check_spec.rb[1:1]  | passed | 0.01665 seconds |
+./spec/health_checks/live_check_spec.rb[1:2]  | passed | 0.00434 seconds |
+./spec/health_checks/ready_check_spec.rb[1:1] | passed | 0.01205 seconds |
+./spec/health_checks/ready_check_spec.rb[1:2] | passed | 0.00786 seconds |
