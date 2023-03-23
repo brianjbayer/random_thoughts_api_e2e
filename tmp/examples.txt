@@ -1,7 +1,0 @@
-example_id                                                   | status | run_time        |
------------------------------------------------------------- | ------ | --------------- |
-./spec/features/new_user_creates_random_thought_spec.rb[1:1] | passed | 2.34 seconds    |
-./spec/health_checks/live_check_spec.rb[1:1]                 | passed | 0.01444 seconds |
-./spec/health_checks/live_check_spec.rb[1:2]                 | passed | 0.00508 seconds |
-./spec/health_checks/ready_check_spec.rb[1:1]                | passed | 0.00739 seconds |
-./spec/health_checks/ready_check_spec.rb[1:2]                | passed | 0.03089 seconds |

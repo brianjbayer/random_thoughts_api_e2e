@@ -9,22 +9,19 @@ FROM ${BASE_IMAGE} AS ruby-alpine
 #--- Builder Stage ---
 FROM ruby-alpine AS builder
 
-# Alpine needs build-base for building native extensions
+# NOTE: Currently, no additional build packages are needed
 ARG BUILD_PACKAGES='build-dependencies build-base'
 
 # Use the same version of Bundler in the Gemfile.lock
 ARG BUNDLER_VER=2.4.9
 
-# TODO: Determine needed packages
-# RUN apk --update add --virtual ${BUILD_PACKAGES} \
-  # Update gem command to latest
-  # Update gem command to latest
+# Update gem command to latest
 RUN gem update --system \
   # && gem update --system \
   && gem install bundler:${BUNDLER_VER}
 
 # Install the Ruby dependencies (defined in the Gemfile/Gemfile.lock)
-WORKDIR /app
+WORKDIR /tests
 COPY Gemfile Gemfile.lock ./
 RUN bundle install
 
@@ -54,8 +51,8 @@ USER deployer
 COPY --from=builder --chown=deployer /usr/local/bundle/ /usr/local/bundle/
 
 # Copy the app source to /app
-WORKDIR /app
-COPY --chown=deployer . /app/
+WORKDIR /tests
+COPY --chown=deployer . /tests/
 
 # Run the tests but allow override
 CMD ./script/run tests
