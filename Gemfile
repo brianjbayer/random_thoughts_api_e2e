@@ -5,6 +5,7 @@ git_source(:github) { |_repo| "https://github.com/#{repo}.git" }
 
 ruby '3.2.1'
 
+gem 'bundler-audit', require: false
 gem 'faker'
 gem 'faraday'
 gem 'rspec'
