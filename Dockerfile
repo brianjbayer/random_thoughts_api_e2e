@@ -1,6 +1,13 @@
 #-------------------------------
 #--- random_thoughts_api_e2e ---
 #-------------------------------
+# Build and Run deployment image
+# docker build --no-cache -t rta-e2e .
+# docker run -it --rm -p 3000:3000 rta-e2e
+
+# Build and Run development environment image
+# docker build --no-cache --target devenv -t rta-e2e-dev .
+# docker run -it --rm -v $(pwd):/test -p 3000:3000 rta-e2e-dev
 
 #--- Base Image ---
 ARG BASE_IMAGE=ruby:3.2.1-alpine
@@ -9,19 +16,15 @@ FROM ${BASE_IMAGE} AS ruby-alpine
 #--- Builder Stage ---
 FROM ruby-alpine AS builder
 
-# NOTE: Currently, no additional build packages are needed
-ARG BUILD_PACKAGES='build-dependencies build-base'
-
 # Use the same version of Bundler in the Gemfile.lock
 ARG BUNDLER_VER=2.4.9
 
-# Update gem command to latest
+# So far no additional packages are needed
 RUN gem update --system \
-  # && gem update --system \
   && gem install bundler:${BUNDLER_VER}
 
 # Install the Ruby dependencies (defined in the Gemfile/Gemfile.lock)
-WORKDIR /tests
+WORKDIR /test
 COPY Gemfile Gemfile.lock ./
 RUN bundle install
 
@@ -51,8 +54,8 @@ USER deployer
 COPY --from=builder --chown=deployer /usr/local/bundle/ /usr/local/bundle/
 
 # Copy the app source to /app
-WORKDIR /tests
-COPY --chown=deployer . /tests/
+WORKDIR /test
+COPY --chown=deployer . /test/
 
 # Run the tests but allow override
 CMD ./script/run tests

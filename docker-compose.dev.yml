@@ -1,0 +1,6 @@
+version: '3.8'
+services:
+  e2etests:
+    image: "${E2ETESTS_IMAGE:-brianjbayer/random_thoughts_api_e2e-dev:latest}"
+    volumes:
+      - ${E2ETESTS_SRC:-.}:/test

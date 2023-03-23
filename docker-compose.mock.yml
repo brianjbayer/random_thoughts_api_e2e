@@ -1,0 +1,22 @@
+version: '3.8'
+services:
+  e2etests:
+    environment:
+      - E2E_BASE_URL=http://${MOCK_HOSTNAME:-mock}:${MOCK_PORT:-3000}
+    depends_on:
+      mock:
+        condition: service_healthy
+
+  mock:
+  # NOTE: Pin tag to ensure version matching between tests and mock
+    image: ${MOCK_IMAGE:-brianjbayer/mock_random_thoughts_api:930220310635932c4e40c442ce6db9f81af11cc7}
+    container_name: ${MOCK_HOSTNAME:-mock}
+    environment:
+      - PORT=${MOCK_PORT:-3000}
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:${MOCK_PORT:-3000}/readyz"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+

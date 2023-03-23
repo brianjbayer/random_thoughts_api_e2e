@@ -1,0 +1,4 @@
+version: '3.8'
+services:
+  e2etests:
+    image: "${E2ETESTS_IMAGE}"
