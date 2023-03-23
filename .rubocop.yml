@@ -6,7 +6,10 @@ require:
 AllCops:
   NewCops: enable
 
+# These are End-to-End Tests so they don't describe classes
 RSpec/DescribeClass:
   Exclude:
     - 'spec/health_checks/live_check_spec.rb'
     - 'spec/health_checks/ready_check_spec.rb'
+    - spec/features/new_user_creates_random_thought_spec.rb
+

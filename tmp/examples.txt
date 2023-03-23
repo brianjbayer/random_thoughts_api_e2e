@@ -1,6 +1,7 @@
-example_id                                    | status | run_time        |
---------------------------------------------- | ------ | --------------- |
-./spec/health_checks/live_check_spec.rb[1:1]  | passed | 0.01665 seconds |
-./spec/health_checks/live_check_spec.rb[1:2]  | passed | 0.00434 seconds |
-./spec/health_checks/ready_check_spec.rb[1:1] | passed | 0.01205 seconds |
-./spec/health_checks/ready_check_spec.rb[1:2] | passed | 0.00786 seconds |
+example_id                                                   | status | run_time        |
+------------------------------------------------------------ | ------ | --------------- |
+./spec/features/new_user_creates_random_thought_spec.rb[1:1] | passed | 2.34 seconds    |
+./spec/health_checks/live_check_spec.rb[1:1]                 | passed | 0.01444 seconds |
+./spec/health_checks/live_check_spec.rb[1:2]                 | passed | 0.00508 seconds |
+./spec/health_checks/ready_check_spec.rb[1:1]                | passed | 0.00739 seconds |
+./spec/health_checks/ready_check_spec.rb[1:2]                | passed | 0.03089 seconds |
