@@ -3,8 +3,12 @@
 require 'spec_helper'
 
 class ReadyZResponse
-  def self.body_json
-    '{"status":200,"message":"ready","database_connection":"ok"}'
+  def self.body
+    {
+      'status' => 200,
+      'message' => 'ready',
+      'database_connection' => 'ok'
+    }
   end
 end
 
@@ -15,7 +19,7 @@ RSpec.describe '/readyz' do
     expect(readyz_request.status).to be(200)
   end
 
-  it "returns expected JSON [#{ReadyZResponse.body_json}]" do
-    expect(readyz_request.body).to eql(ReadyZResponse.body_json)
+  it "returns expected JSON [#{ReadyZResponse.body.to_json}]" do
+    expect(JSON.parse(readyz_request.body)).to eql(ReadyZResponse.body)
   end
 end

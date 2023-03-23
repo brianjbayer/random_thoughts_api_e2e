@@ -3,8 +3,11 @@
 require 'spec_helper'
 
 class LivezResponse
-  def self.body_json
-    '{ "status": 200, "message": "alive" }'
+  def self.body
+    {
+      'status' => 200,
+      'message' => 'alive'
+    }
   end
 end
 
@@ -15,7 +18,8 @@ RSpec.describe '/livez' do
     expect(livez_request.status).to be(200)
   end
 
-  it "returns expected JSON [#{LivezResponse.body_json}]" do
-    expect(livez_request.body).to eql(LivezResponse.body_json)
+  it "returns expected JSON [#{LivezResponse.body.to_json}]" do
+    # Ignore format and order
+    expect(JSON.parse(livez_request.body)).to eql(LivezResponse.body)
   end
 end
