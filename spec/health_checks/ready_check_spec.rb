@@ -2,24 +2,18 @@
 
 require 'spec_helper'
 
-class ReadyZResponse
-  def self.body
+RSpec.describe '/readyz' do
+  subject(:readyz_request) { random_thoughts_unauth_connection.get(endpoint_url('/readyz')) }
+
+  it { expect(readyz_request).to be_request_response(200, readyz_response) }
+
+  private
+
+  def readyz_response
     {
       'status' => 200,
       'message' => 'ready',
       'database_connection' => 'ok'
     }
-  end
-end
-
-RSpec.describe '/readyz' do
-  subject(:readyz_request) { Faraday.get(endpoint_url('/readyz')) }
-
-  it 'returns status code 200' do
-    expect(readyz_request.status).to be(200)
-  end
-
-  it "returns expected JSON [#{ReadyZResponse.body.to_json}]" do
-    expect(JSON.parse(readyz_request.body)).to eql(ReadyZResponse.body)
   end
 end
