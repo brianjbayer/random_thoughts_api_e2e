@@ -101,6 +101,8 @@ end
 require 'faker'
 require 'faraday'
 require_relative 'support/helpers/endpoint_helper'
+require_relative 'support/matchers/be_request_response'
+require_relative 'support/matchers/include_random_thought'
 
 RSpec.configure do |config|
   # Faker values are only guaranteed unique for each top level
