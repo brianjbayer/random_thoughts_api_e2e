@@ -1,0 +1,128 @@
+#!/bin/sh
+# This script runs the project docker-compose framework.
+#
+# - The arguments to this script are passed to the e2etests service
+#   as command override
+#
+# - Any environment variables set when calling this script are passed
+#   through to the docker-compose framework
+#   (e.g. configuration other than the defaults)
+#
+# OPTIONS:
+# -c: Use the docker-compose CI environment with E2ETESTS_IMAGE
+# -d: Use the docker-compose Dev environment with E2ETESTS_IMAGE
+# -m: Use the mock application as the target
+# ----------------------------------------------------------------------
+
+usage() {
+  echo "Usage: $0 [-cdmn] [CMD]"
+}
+
+err_exit() {
+  local err_msg="$1"
+  local err_code=$2
+  echo "${err_msg}  --  Exit:[${err_code}]" 1>&2
+  usage
+  exit $err_code
+}
+
+# Exit script on any errors
+set -e
+
+# Handle options
+while getopts ":cdm" options; do
+  case "${options}" in
+    c)
+      echo "CI Environment"
+      ci=true
+      ;;
+
+    d)
+      echo "Development Environment"
+      devenv=true
+      ;;
+
+    m)
+      echo "Use Mock as Target"
+      usemock=true
+      ;;
+
+    \?)
+    err_exit "Invalid Option: -$OPTARG" 1
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+echo ''
+echo "ENVIRONMENT VARIABLES..."
+env
+echo ''
+
+echo 'DOCKER VERSION...'
+docker --version
+docker-compose --version
+echo ''
+
+# Override docker compose environments
+echo 'DOCKER-COMPOSE COMMAND...'
+docker_compose_command='docker-compose -f docker-compose.yml '
+
+# Use CI environment
+if [ ! -z ${ci} ]; then
+  echo "...Using CI Environment with E2ETESTS_IMAGE: [${E2ETESTS_IMAGE}]"
+  docker_compose_command="${docker_compose_command} -f docker-compose.ci.yml "
+fi
+
+# Use the mock application as the target of the e2e tests
+if [ ! -z ${usemock} ]; then
+  echo "...Using Mock app with MOCK_IMAGE: [${MOCK_IMAGE}] as Target with E2ETESTS_IMAGE: [${E2ETESTS_IMAGE}]"
+  docker_compose_command="${docker_compose_command} -f docker-compose.mock.yml "
+fi
+
+# Use the dev environment
+if [ ! -z ${devenv} ]; then
+  echo "...Using Development Environment with  with E2ETESTS_IMAGE: [${E2ETESTS_IMAGE}]"
+  docker_compose_command="${docker_compose_command} -f docker-compose.dev.yml "
+fi
+echo "...COMMAND: [${docker_compose_command}]"
+echo ''
+
+echo 'DOCKER-COMPOSE CONFIGURATION...'
+$docker_compose_command config
+echo ''
+
+echo 'DOCKER-COMPOSE PULLING...'
+set +e
+$docker_compose_command pull
+echo '...Allowing pull errors (for local images)'
+set -e
+echo ''
+
+echo 'DOCKER IMAGES...'
+docker images
+echo ''
+
+echo "DOCKER-COMPOSE RUNNING [$@]..."
+# Allow to fail but catch return code
+set +e
+$docker_compose_command run --rm e2etests "$@"
+run_return_code=$?
+# NOTE return code must be caught before any other command
+set -e
+echo ''
+
+if [ $run_return_code -eq 0 ]; then
+    run_disposition='PASSED'
+else
+    run_disposition='FAILED'
+fi
+echo "...RUN [${run_disposition}] WITH RETURN CODE [${run_return_code}]"
+echo ''
+
+echo 'DOCKER-COMPOSE DOWN...'
+$docker_compose_command down
+echo ''
+
+echo "EXITING WITH ${run_disposition} RUN RETURN CODE ${run_return_code}"
+exit $run_return_code
