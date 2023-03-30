@@ -77,7 +77,6 @@ jobs:
     needs:
       - vet-code-standards
       - vet-dependency-security
-      - vet-deploy-e2e-tests
       - pr-norm-branch
     uses: brianjbayer/actions-image-cicd/.github/workflows/pull_push_image.yml@main
     with:
