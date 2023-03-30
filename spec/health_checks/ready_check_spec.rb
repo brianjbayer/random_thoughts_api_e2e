@@ -13,7 +13,8 @@ RSpec.describe '/readyz' do
     {
       'status' => 200,
       'message' => 'ready',
-      'database_connection' => 'ok'
+      'database_connection' => 'ok',
+      'database_migrations' => 'ok'
     }
   end
 end
