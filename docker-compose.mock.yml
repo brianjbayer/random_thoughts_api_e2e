@@ -8,8 +8,9 @@ services:
         condition: service_healthy
 
   mock:
-  # NOTE: Pin tag to ensure version matching between tests and mock
-    image: ${MOCK_IMAGE:-brianjbayer/mock_random_thoughts_api:930220310635932c4e40c442ce6db9f81af11cc7}
+  # NOTE: The failing test should be written first, so always go against
+  # latests version of the mock target to ensure currency of target
+    image: ${MOCK_IMAGE:-brianjbayer/mock_random_thoughts_api:latest}
     container_name: ${MOCK_HOSTNAME:-mock}
     environment:
       - PORT=${MOCK_PORT:-3000}
