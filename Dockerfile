@@ -17,7 +17,7 @@ FROM ${BASE_IMAGE} AS ruby-base
 FROM ruby-base AS builder
 
 # Use the same version of Bundler in the Gemfile.lock
-ARG BUNDLER_VERSION=2.4.9
+ARG BUNDLER_VERSION=2.5.17
 ENV BUNDLER_VERSION=${BUNDLER_VERSION}
 
 COPY Gemfile Gemfile.lock ./
@@ -59,7 +59,7 @@ CMD ["bash"]
 FROM ruby-base AS deploy
 
 # Use the same version of Bundler in the Gemfile.lock
-ARG BUNDLER_VERSION=2.4.9
+ARG BUNDLER_VERSION=2.5.17
 ENV BUNDLER_VERSION=${BUNDLER_VERSION}
 
 # Throw errors if Gemfile has been modified since Gemfile.lock
