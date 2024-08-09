@@ -1,100 +1,93 @@
-name: On PR Build Push Vet
+name: Build and Vet
 
 on:
   pull_request:
     branches:
       - main
 
-# FYI...
-#  Raw Branch Name: ${{ github.head_ref }}
-#  <commit-sha>: ${{ github.event.pull_request.head.sha }}
-
-# Produced images...
-#  1. (Always) Unvetted Image: <owner/repository>_<normalized-branch>_unvetted:<commit-sha>
-#  2. (Always) Dev Environment Image: <owner/repository>_<normalized-branch>_dev:<commit-sha>
-#  3. (If vetted) Vetted_image: <owner/repository>_<normalized-branch>:<commit-sha>
-
 jobs:
-  # Normalize the branch for image name
-  pr-norm-branch:
-    uses: brianjbayer/actions-image-cicd/.github/workflows/normalize_for_image_name.yml@main
-    with:
-      raw_name: ${{ github.head_ref }}
 
-  # Build and Push Images
-  build-and-push-branch-devenv:
-    needs: [pr-norm-branch]
-    uses: brianjbayer/actions-image-cicd/.github/workflows/build_push_image.yml@main
+  # --- Image Names ---
+
+  image-names:
+    name: PR (Branch) Image Names
+    uses: brianjbayer/actions-image-cicd/.github/workflows/image_names.yml@v0.2.1
     with:
-      image: ${{ github.repository }}_${{ needs.pr-norm-branch.outputs.name }}_dev:${{ github.event.pull_request.head.sha }}
+      add_branch_name: true
+
+  # --- Build and Push Images ---
+
+  buildx-and-push-dev-image:
+    name: Build Development Image
+    needs:
+      - image-names
+    uses: brianjbayer/actions-image-cicd/.github/workflows/buildx_push_image.yml@v0.2.1
+    with:
+      image: ${{ needs.image-names.outputs.dev_image }}
+      platforms: "linux/amd64,linux/arm64"
       buildopts: --target devenv
     secrets:
       registry_u: ${{ secrets.DOCKER_HUB_USERNAME }}
       registry_p: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-  build-and-push-branch-unvetted:
-    needs: [pr-norm-branch]
-    uses: brianjbayer/actions-image-cicd/.github/workflows/build_push_image.yml@main
+  buildx-and-push-unvetted-image:
+    name: Build Deployment (Unvetted) Image
+    needs:
+      - image-names
+    uses: brianjbayer/actions-image-cicd/.github/workflows/buildx_push_image.yml@v0.2.1
     with:
-      image: ${{ github.repository }}_${{ needs.pr-norm-branch.outputs.name }}_unvetted:${{ github.event.pull_request.head.sha }}
+      image: ${{ needs.image-names.outputs.unvetted_image }}
+      platforms: "linux/amd64,linux/arm64"
     secrets:
       registry_u: ${{ secrets.DOCKER_HUB_USERNAME }}
       registry_p: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
 
-  # Vet Deploy Image
-  vet-code-standards:
-    needs: [pr-norm-branch, build-and-push-branch-devenv]
-    runs-on: ubuntu-latest
-    env:
-      DEVENV_IMAGE: ${{ github.repository }}_${{ needs.pr-norm-branch.outputs.name }}_dev:${{ github.event.pull_request.head.sha }}
-    steps:
-      - uses: actions/checkout@v1
-      - name: dockercomposerun rubocop on development environment
-        run: "E2ETESTS_IMAGE=${DEVENV_IMAGE} ./script/dockercomposerun -d ./script/run lint"
+  # --- Vet Images ---
 
-  vet-dependency-security:
-    needs: [pr-norm-branch, build-and-push-branch-devenv]
-    runs-on: ubuntu-latest
-    env:
-      DEVENV_IMAGE: ${{ github.repository }}_${{ needs.pr-norm-branch.outputs.name }}_dev:${{ github.event.pull_request.head.sha }}
-    steps:
-      - uses: actions/checkout@v1
-      - name: dockercomposerun bundle-audit on development environment
-        run: "E2ETESTS_IMAGE=${DEVENV_IMAGE} ./script/dockercomposerun -d ./script/run secscan"
+  vet-lint-security:
+    name: Vet Code Quality
+    needs:
+      - image-names
+      - buildx-and-push-dev-image
+    uses: brianjbayer/actions-image-cicd/.github/workflows/vet_code_standards.yml@v0.2.1
+    with:
+      lint_command: "E2ETESTS_IMAGE=${{ needs.image-names.outputs.dev_image }} ./script/dockercomposerun -d ./script/run lint"
+      dependency_security_command: "E2ETESTS_IMAGE=${{ needs.image-names.outputs.dev_image }} ./script/dockercomposerun -d ./script/run secscan"
 
   vet-deploy-e2e-tests:
-    needs: [pr-norm-branch, build-and-push-branch-unvetted]
+    name: Run E2E Tests against Mock
+    needs:
+      - image-names
+      - buildx-and-push-unvetted-image
     runs-on: ubuntu-latest
-    env:
-      UNVETTED_IMAGE: ${{ github.repository }}_${{ needs.pr-norm-branch.outputs.name }}_unvetted:${{ github.event.pull_request.head.sha }}
     steps:
       - uses: actions/checkout@v1
       - name: dockercomposerun unvetted image with mock target
-        run: "E2ETESTS_IMAGE=${UNVETTED_IMAGE} ./script/dockercomposerun -cm"
+        run: "E2ETESTS_IMAGE=${{ needs.image-names.outputs.unvetted_image }} ./script/dockercomposerun -cm"
 
-# Push (IF) Vetted Deploy Image
-  push-branch-vetted-deploy-image:
+  vet-dev-e2e-tests:
+    name: Run Devenv E2E Tests against Mock
     needs:
-      - vet-code-standards
-      - vet-dependency-security
-      - pr-norm-branch
-    uses: brianjbayer/actions-image-cicd/.github/workflows/pull_push_image.yml@main
+      - image-names
+      - buildx-and-push-dev-image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: dockercomposerun unvetted image with mock target
+        run: "E2ETESTS_IMAGE=${{ needs.image-names.outputs.dev_image }} ./script/dockercomposerun -cm"
+
+  # --- Promote Vetted Image If It Passes ---
+
+  copy-branch-vetted-deploy-image:
+    name: Promote Vetted Deployment Image
+    needs:
+      - image-names
+      - vet-lint-security
+      - vet-deploy-e2e-tests
+    uses: brianjbayer/actions-image-cicd/.github/workflows/copy_image.yml@main
     with:
-      # Pull unvetted branch image
-      pull_as: ${{ github.repository }}_${{ needs.pr-norm-branch.outputs.name }}_unvetted:${{ github.event.pull_request.head.sha }}
-      # Push Vetted Image
-      push_as: ${{ github.repository }}_${{ needs.pr-norm-branch.outputs.name }}:${{ github.event.pull_request.head.sha }}
+      source_image: ${{ needs.image-names.outputs.unvetted_image }}
+      target_image: ${{ needs.image-names.outputs.vetted_image }}
     secrets:
       registry_u: ${{ secrets.DOCKER_HUB_USERNAME }}
       registry_p: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }}
-
-  # Vet Dev Environment Image
-  vet-devenv-e2e-tests:
-    needs: [pr-norm-branch, build-and-push-branch-devenv]
-    runs-on: ubuntu-latest
-    env:
-      DEVENV_IMAGE: ${{ github.repository }}_${{ needs.pr-norm-branch.outputs.name }}_dev:${{ github.event.pull_request.head.sha }}
-    steps:
-      - uses: actions/checkout@v1
-      - name: dockercomposerun devenv image with mock target
-        run: "E2ETESTS_IMAGE=${DEVENV_IMAGE} ./script/dockercomposerun -dm ./script/run tests"
