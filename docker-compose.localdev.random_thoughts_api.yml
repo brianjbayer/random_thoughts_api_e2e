@@ -1,0 +1,10 @@
+services:
+  random_thoughts_api:
+    # Use unique environment variable to avoid conflict with base config
+    image: ${RANDOM_THOUGHTS_API_LOCAL_IMAGE:-brianjbayer/random_thoughts_api-dev:latest}
+    volumes:
+      - ${RANDOM_THOUGHTS_API_SRC:-./../random_thoughts_api}:/app
+    environment:
+      RAILS_ENV: ${RANDOM_THOUGHTS_API_RAILS_ENV:-development}
+    # Keep the container running
+    command: ${RANDOM_THOUGHTS_API_CMD:-tail -f /dev/null}

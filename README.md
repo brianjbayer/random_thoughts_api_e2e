@@ -1,6 +1,7 @@
 # random_thoughts_api_e2e
 
-This is the Acceptance Test/End-To-End (E2E) Test suite for the
+This is the Acceptance Test/End-To-End (E2E) Test suite and E2E
+environment for the
 [random_thoughts_api](https://github.com/brianjbayer/random_thoughts_api)
 application.
 
@@ -31,44 +32,90 @@ the target `random_thoughts_api` application under test using the
 > **Prerequisites**: You must have Docker installed and
 > running on your local machine
 
-The easiest way to run the tests is with the docker compose
-framework using the `dockercomposerun` script.
+There are multiple uses for this project.  You can...
+* Run just the E2E environment
+* Run the E2E tests against the (latest) E2E environment
+* Run the E2E tests against a specific endpoint target (e.g. local)
+* Run this as an E2E development environment for the
+  `random_thoughts_api` application
 
-This will pull the latest docker image of this project and run
-the tests against the target application specified with the
-`E2E_BASE_URL` environment variable.
+Regardless of how you are using this project, the easiest way
+to run the E2E tests and environment is generally with the
+docker compose framework.
 
-Assuming that you have set or supplied the `E2E_BASE_URL`
-environment variable to specify the target, to run the tests
-using the docker compose framework, run the following command...
+### Running Just the E2E Environment
+To just run the `random_thoughts_api` application E2E environment
+in detached mode, simply use the `docker compose up` command...
+```
+docker compose up -d
+```
+
+To stop the E2E environment, use the `docker compose down`
+command...
+
+```
+docker compose down
+```
+
+### Running the E2E Tests Against the E2E Environment
+To run the latest E2E tests against the latest version of the
+`random_thoughts_api` application, use the
+`dockercomposerun` script...
+
 ```
 ./script/dockercomposerun
 ```
 
-For example, to run the tests against a target running on your
-local (e.g. host) machine on port 3000, run the following
-command...
+To run against a specific `random_thoughts_api` image, specify
+it with the `RANDOM_THOUGHTS_API_IMAGE` environment variable,
+for example...
+
+```
+RANDOM_THOUGHTS_API_IMAGE=rta ./script/dockercomposerun
+```
+
+### Running the E2E Tests Against an Endpoint
+To run the latest E2E tests against a specific endpoint
+for the `random_thoughts_api` application, specify
+it with the `E2E_BASE_URL` environment variable and
+run just the E2E tests with the `-o` (only) option
+ with the `dockercomposerun` script.
+
+For example, to run the E2E tests against a target running
+on your local (e.g. host) machine on port 3000, run the
+following command...
+
 ```
 E2E_BASE_URL=http://host.docker.internal:3000 ./script/dockercomposerun
 ```
 
-### Using the Mock Application as the Target of the Tests
-If you want to run the tests using the docker compose framework
-against the Mock application
-[mock_random_thoughts_api](https://github.com/brianjbayer/mock_random_thoughts_api)
-as the target, use the `-m` (mock) option with the
-`dockercomposerun` script.  This will pull the pinned tagged
-image of the mock application and run the tests against it.
+### Running As an E2E Development Environment
+> :boom: This assumes that your `random_thoughts_api`
+> source code is under the same parent directory
+> as this project.  If not, specify its location
+> with the `RANDOM_THOUGHTS_API_SRC` environment
+> variable
 
-To run the tests using the docker compose framework against the
-mock application container, run the following command...
-```
-./script/dockercomposerun -m
-```
+You can also use this project as an E2E development
+environment for the `random_thoughts_api`
+application using its Development Image and local
+source code volume mounted into the `random_thoughts_api`
+container in the E2E environment.
 
-> :point_right: When using the `-m` option, the value of the
-> `E2E_BASE_URL` environment variable will be overridden
-> in the docker compose framework
+1. Start either just the E2E environment or the
+   E2E environment with tests
+   for example...
+   ```
+   ./script/dockercomposerun -d
+   ```
+
+2. Use the `dockercomposelocaldev` script specifying `random_thoughts_api`...
+   ```
+   ./script/dockercomposelocaldev random_thoughts_api
+   ```
+
+3. To exit enter `exit` and this will exit the shell and restore the original
+   configuration image
 
 ---
 
@@ -116,8 +163,8 @@ development environment which includes `vim` and `git`.
 The development environment container volume mounts your local source
 code to recognize and persist any changes.
 
-By default the development environment container executes the alpine
-`/bin/ash` shell providing a command line interface.
+By default the development environment container executes the `bash`
+shell providing a command line interface.
 
 ### To Develop Using the Container-Based Development Environment
 The easiest way to run the containerized development environment is with
@@ -127,12 +174,8 @@ the docker compose framework using the `dockercomposerun` script with the
 ./script/dockercomposerun -d
 ```
 
-This will pull and run the latest development environment image of this
-project.
-
-> :bulb: You can use the Mock application in the docker compose
-> framework development environment by specifying the `-m`
-> option (e.g. `./script/dockercomposerun -dm`)
+This will pull and run the latest E2E environment with the development
+image of this project.
 
 #### Building Your Own Development Environment Image
 You can also build and run your own development environment image.

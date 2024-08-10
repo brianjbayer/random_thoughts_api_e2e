@@ -51,30 +51,30 @@ jobs:
       - buildx-and-push-dev-image
     uses: brianjbayer/actions-image-cicd/.github/workflows/vet_code_standards.yml@v0.2.2
     with:
-      lint_command: "E2ETESTS_IMAGE=${{ needs.image-names.outputs.dev_image }} ./script/dockercomposerun -d ./script/run lint"
-      dependency_security_command: "E2ETESTS_IMAGE=${{ needs.image-names.outputs.dev_image }} ./script/dockercomposerun -d ./script/run secscan"
+      lint_command: "E2ETESTS_IMAGE=${{ needs.image-names.outputs.dev_image }} ./script/dockercomposerun -do ./script/run lint"
+      dependency_security_command: "E2ETESTS_IMAGE=${{ needs.image-names.outputs.dev_image }} ./script/dockercomposerun -do ./script/run secscan"
 
   vet-deploy-e2e-tests:
-    name: Run E2E Tests against Mock
+    name: Run E2E Tests
     needs:
       - image-names
       - buildx-and-push-unvetted-image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - name: dockercomposerun unvetted image with mock target
-        run: "E2ETESTS_IMAGE=${{ needs.image-names.outputs.unvetted_image }} ./script/dockercomposerun -cm"
+      - name: dockercomposerun unvetted image e2e tests
+        run: "E2ETESTS_IMAGE=${{ needs.image-names.outputs.unvetted_image }} ./script/dockercomposerun -c"
 
   vet-dev-e2e-tests:
-    name: Run Devenv E2E Tests against Mock
+    name: Run Devenv E2E Tests
     needs:
       - image-names
       - buildx-and-push-dev-image
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
-      - name: dockercomposerun unvetted image with mock target
-        run: "E2ETESTS_IMAGE=${{ needs.image-names.outputs.dev_image }} ./script/dockercomposerun -cm"
+      - name: dockercomposerun devenv image e2e tests
+        run: "E2ETESTS_IMAGE=${{ needs.image-names.outputs.dev_image }} ./script/dockercomposerun -d ./script/run tests"
 
   # --- Promote Vetted Image If It Passes ---
 

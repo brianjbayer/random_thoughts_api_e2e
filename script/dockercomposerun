@@ -2,19 +2,19 @@
 set -e
 
 usage() {
+  me=$(basename "$0")
   cat << USAGE
-Usage: $0 [-cdhm] [CMD]
-This script orchestrates a 'docker compose run' of the e2e tests in
-the docker compose framework
-  * Arguments are passed to the app service as the CMD (entrypoint)
-  * Environment variables override app and framework defaults
+Usage: $me [-l appname] [-cdho] [CMD]
+This script orchestrates a 'docker compose run' of all apps under test
+(the E2E environment) and the e2e tests in the docker compose framework
+  * Arguments are passed to the e2etests service as the CMD (entrypoint)
+  * Environment variables override apps, tests, and framework defaults
 
 OPTIONS: (in override order)
-  -c: Run the docker-compose CI environment with E2ETESTS_IMAGE (required)
-  -d: Run the docker-compose Dev environment
-  -m: Run the docker-compose environment using the mock application as the target
-
-  -h: Display help and usage
+  -o:         Run Only the e2etests service with no E2E environment
+  -d:         Run the docker-compose e2etests Dev environment
+  -c:         Run the docker-compose CI environment with E2ETESTS_IMAGE (required)
+  -h:         Display Help and usage
 
 USAGE
 }
@@ -27,7 +27,7 @@ err_exit() {
 }
 
 # Handle options
-while getopts ":cdhm" options; do
+while getopts ":cdho" options; do
   case "${options}" in
     c)
       ci=1
@@ -38,29 +38,36 @@ while getopts ":cdhm" options; do
     h)
       usage ; exit
       ;;
-    m)
-      usemock=1
+    o)
+      tests_only=1
       ;;
     \?)
       usage
       err_exit 1 "Invalid Option: -$OPTARG"
       ;;
+    :)
+      echo "Option -$OPTARG requires an argument." >&2
+      exit 1
+      ;;
   esac
 done
 shift $((OPTIND-1))
 
+docker_compose_command='docker compose'
+
+if [ -n "${tests_only}" ] ; then
+  docker_compose_command="${docker_compose_command} -f docker-compose.tests.yml"
+else
+  docker_compose_command="${docker_compose_command} -f docker-compose.yml"
+  docker_compose_command="${docker_compose_command} -f docker-compose.tests.yml"
+  docker_compose_command="${docker_compose_command} -f docker-compose.tests-dependency.yml"
+fi
+
+[ -n "${ci}" ] && docker_compose_command="${docker_compose_command} -f docker-compose.ci.yml "
+[ -n "${devenv}" ] && docker_compose_command="${docker_compose_command} -f docker-compose.dev.yml "
+
 echo "DOCKER VERSION: [`docker --version`]"
-
-docker_compose_command='docker compose -f docker-compose.yml '
-[ -z ${ci} ] || docker_compose_command="${docker_compose_command} -f docker-compose.ci.yml "
-[ -z ${devenv} ] || docker_compose_command="${docker_compose_command} -f docker-compose.dev.yml "
-[ -z ${usemock} ] || docker_compose_command="${docker_compose_command} -f docker-compose.mock.yml "
-
-# Run the e2etests, but must specify --service-ports
-# (by default docker compose run does not expose host ports)
-run_command='run --rm --service-ports e2etests '
-docker_compose_run_command="${docker_compose_command} ${run_command}"
-echo "DOCKER COMPOSE RUN COMMAND: [${docker_compose_run_command}]"
+echo "DOCKER COMPOSE COMMAND: [${docker_compose_command}]"
 
 echo 'DOCKER COMPOSE CONFIGURATION...'
 $docker_compose_command config
@@ -68,12 +75,25 @@ $docker_compose_command config
 echo 'DOCKER COMPOSE PULLING...'
 set +e ; $docker_compose_command pull ; set -e
 
+# By default docker compose run does not expose host ports
+docker_compose_run_command="${docker_compose_command} run --rm --service-ports e2etests"
+
+echo "DOCKER COMPOSE RUN COMMAND: [${docker_compose_run_command}]"
+
 echo "DOCKER COMPOSE RUNNING [${docker_compose_run_command}] [$@]..."
+
+# Temp file to store docker compose command (used by dockercomposelocal)
+docker_compose_command_file=".dockercomposerun"
+echo "${docker_compose_command}" > ${docker_compose_command_file}
+
 # Allow to fail but catch return code
 set +e
 ${docker_compose_run_command} "$@"
 run_return_code=$?
 set -e
+
+# Remove temp file
+set +e ; rm -f ${docker_compose_command_file} ; set -e
 
 run_disposition='SUCCESS' ; [ $run_return_code -eq 0 ] || run_disposition='FAIL'
 echo "DOCKER COMPOSE RUN [${run_disposition}] WITH RETURN CODE [${run_return_code}]"

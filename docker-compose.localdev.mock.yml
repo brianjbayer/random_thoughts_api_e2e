@@ -1,0 +1,8 @@
+services:
+  mock:
+    image: ${MOCK_LOCAL_IMAGE:-brianjbayer/mock_random_thoughts_api-dev:latest}
+    volumes:
+      - ${MOCK_SRC:-./../mock_random_thoughts_api}:/usr/src/app
+    working_dir: /usr/src/app
+    # Keep the container running
+    command: ${MOCK_CMD:-tail -f /dev/null}
