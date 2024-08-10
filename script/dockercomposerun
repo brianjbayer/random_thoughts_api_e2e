@@ -3,16 +3,17 @@ set -e
 
 usage() {
   cat << USAGE
-Usage: $0 [-cdhm] [CMD]
+Usage: $0 [-cdehm] [CMD]
 This script orchestrates a 'docker compose run' of the e2e tests in
 the docker compose framework
   * Arguments are passed to the app service as the CMD (entrypoint)
   * Environment variables override app and framework defaults
 
 OPTIONS: (in override order)
-  -c: Run the docker-compose CI environment with E2ETESTS_IMAGE (required)
-  -d: Run the docker-compose Dev environment
+  -e: Run the docker-compose end-to-end environment with random_thoughts_api image
   -m: Run the docker-compose environment using the mock application as the target
+  -d: Run the docker-compose Dev environment
+  -c: Run the docker-compose CI environment with E2ETESTS_IMAGE (required)
 
   -h: Display help and usage
 
@@ -27,13 +28,16 @@ err_exit() {
 }
 
 # Handle options
-while getopts ":cdhm" options; do
+while getopts ":cdehm" options; do
   case "${options}" in
     c)
       ci=1
       ;;
     d)
       devenv=1
+      ;;
+    e)
+      e2eenv=1
       ;;
     h)
       usage ; exit
@@ -52,6 +56,7 @@ shift $((OPTIND-1))
 echo "DOCKER VERSION: [`docker --version`]"
 
 docker_compose_command='docker compose -f docker-compose.yml '
+[ -z ${e2eenv} ] || docker_compose_command="${docker_compose_command} -f docker-compose.environment.yml "
 [ -z ${ci} ] || docker_compose_command="${docker_compose_command} -f docker-compose.ci.yml "
 [ -z ${devenv} ] || docker_compose_command="${docker_compose_command} -f docker-compose.dev.yml "
 [ -z ${usemock} ] || docker_compose_command="${docker_compose_command} -f docker-compose.mock.yml "
