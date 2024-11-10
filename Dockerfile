@@ -10,14 +10,14 @@
 # docker run -it --rm -v $(pwd):/test -p 3000:3000 rta-e2e-dev
 
 #--- Base Image ---
-ARG BASE_IMAGE=ruby:3.2.1-slim-buster
+ARG BASE_IMAGE=ruby:3.3.5-slim-bookworm
 FROM ${BASE_IMAGE} AS ruby-base
 
 #--- Builder Stage ---
 FROM ruby-base AS builder
 
 # Use the same version of Bundler in the Gemfile.lock
-ARG BUNDLER_VERSION=2.5.17
+ARG BUNDLER_VERSION=2.5.23
 ENV BUNDLER_VERSION=${BUNDLER_VERSION}
 
 COPY Gemfile Gemfile.lock ./
@@ -59,7 +59,7 @@ CMD ["bash"]
 FROM ruby-base AS deploy
 
 # Use the same version of Bundler in the Gemfile.lock
-ARG BUNDLER_VERSION=2.5.17
+ARG BUNDLER_VERSION=2.5.23
 ENV BUNDLER_VERSION=${BUNDLER_VERSION}
 
 # Throw errors if Gemfile has been modified since Gemfile.lock

@@ -162,7 +162,7 @@ E2ETESTS_SRC=${PWD} E2ETESTS_IMAGE=rta-e2e-dev ./script/dockercomposerun -d
 
 ## Specifications
 ### Versions
-* Ruby: 3.2.1
+* Ruby: 3.3.5
 * RSpec 3
 
 ### Support
