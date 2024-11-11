@@ -1,0 +1,6 @@
+services:
+  e2etests:
+    image: brianjbayer/random_thoughts_api_e2e:${E2ETESTS_TAG:-latest}
+    container_name: ${E2ETESTS_HOSTNAME:-e2etests}
+    environment:
+      - E2E_BASE_URL
