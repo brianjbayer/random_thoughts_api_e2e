@@ -1,0 +1,43 @@
+name: Run Random Thoughts API End-to-End Tests
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: "The type of runner for this workflow (Default: ubuntu-latest)"
+        required: false
+        type: string
+        default: ubuntu-latest
+      e2e_tests_image:
+        description: "Non-default End-to-End tests image to run"
+        required: false
+        type: string
+      e2e_tests_command_prefix:
+        description: "Command line prefix to add before e2e test command"
+        required: false
+        type: string
+      workflow_checkout_ref:
+        description: "The ref to checkout for the scripts used in the workflow"
+        required: false
+        type: string
+        # NOTE: Version the scripts for this workflow here
+        default: v0.1
+
+jobs:
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ${{ inputs.runner }}
+
+    steps:
+      - name: Checkout e2e tests repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.workflow_checkout_ref }}
+          repository: brianjbayer/random_thoughts_api_e2e
+      - name: dockercomposerun e2e tests image
+        if: ${{ inputs.e2e_tests_image }}
+        run: "${{ inputs.e2e_tests_command_prefix }} E2ETESTS_IMAGE=${{ inputs.e2e_tests_image }} ./script/dockercomposerun -c"
+
+      - name: dockercomposerun e2e tests
+        if: ${{ ! inputs.e2e_tests_image }}
+        run: "${{ inputs.e2e_tests_command_prefix }} ./script/dockercomposerun"
