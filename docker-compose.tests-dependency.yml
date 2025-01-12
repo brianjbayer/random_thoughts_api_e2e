@@ -1,0 +1,9 @@
+services:
+  e2etests:
+    environment:
+      - E2E_BASE_URL=http://${RANDOM_THOUGHTS_API_HOSTNAME:-random_thoughts_api}:${RANDOM_THOUGHTS_API_PORT:-3000}
+    depends_on:
+      random_thoughts_api:
+        condition: service_healthy
+      mock:
+        condition: service_healthy

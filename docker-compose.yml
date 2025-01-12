@@ -1,6 +1,71 @@
 services:
-  e2etests:
-    image: brianjbayer/random_thoughts_api_e2e:${E2ETESTS_TAG:-latest}
-    container_name: ${E2ETESTS_HOSTNAME:-e2etests}
+  #  Microservices under test
+  mock:
+    image: ${MOCK_IMAGE:-brianjbayer/mock_random_thoughts_api:latest}
+    container_name: ${MOCK_HOSTNAME:-mock}
+    ports:
+      - "${MOCK_PORT:-3001}:${MOCK_PORT:-3001}"
     environment:
-      - E2E_BASE_URL
+      - PORT=${MOCK_PORT:-3001}
+    healthcheck:
+      test: ["CMD", "bash", "-c", "node", "is_ok.js", "http://localhost:${PORT:-3001}/readyz"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  random_thoughts_api:
+    image: ${RANDOM_THOUGHTS_API_IMAGE:-brianjbayer/random_thoughts_api:latest}
+    container_name: ${RANDOM_THOUGHTS_API_HOSTNAME:-random_thoughts_api}
+    ports:
+      - "${RANDOM_THOUGHTS_API_PORT:-3000}:${RANDOM_THOUGHTS_API_PORT:-3000}"
+    environment:
+      - PORT=${RANDOM_THOUGHTS_API_PORT:-3000}
+     # Database is the random_thoughts_api_db
+      - PGPORT=${RANDOM_THOUGHTS_API_PGPORT:-5432}
+      # Default host is the app db service
+      - POSTGRES_HOST=${RANDOM_THOUGHTS_API_POSTGRES_HOST:-random_thoughts_api_db}
+      - POSTGRES_DB="${RANDOM_THOUGHTS_API_POSTGRES_DB:-random_thoughts_api}"
+      - POSTGRES_USER=${RANDOM_THOUGHTS_API_POSTGRES_USER:-random_thoughts_api}
+      # Secrets
+      - POSTGRES_PASSWORD=${RANDOM_THOUGHTS_API_POSTGRES_PASSWORD:-banana}
+      - SECRET_KEY_BASE=${RANDOM_THOUGHTS_API_SECRET_KEY_BASE:-de5153a4574e92983d8b882f76df17ee81a4cceae5ed3ddef50d6ea6bc00b6981dd62084d3951d8570ffbaed8b9d912beddf2e68f50521dad582350596543579}
+      - APP_JWT_SECRET=${RANDOM_THOUGHTS_APP_JWT_SECRET:-cece3bb134db7af7ab028cd8a39d9664e968c6031db0d510ce14fb26d9bcaf38f67aa7feb3c4b0b4ba97f46774f8b2701b88262d3fc5840949b239f9cf4e8408}
+    depends_on:
+      random_thoughts_api_db:
+        condition: service_healthy
+      mock:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "bash", "-c", "ruby", "app_is", "ready"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  random_thoughts_api_db:
+    image: postgres
+    user: postgres
+    environment:
+      # PostgreSQL environment variables
+      # By default Postgres runs on port 5432
+      PGPORT: ${RANDOM_THOUGHTS_API_PGPORT:-5432}
+      # For happy container (logs), set internal user to POSTGRES_DB/POSTGRES_USER
+      PGUSER: ${RANDOM_THOUGHTS_API_PGUSER:-random_thoughts_api}
+      # Postgres image environment variables
+      # To keep the pg container (logs) happy, make db and user the same
+      POSTGRES_DB: "${RANDOM_THOUGHTS_API_POSTGRES_DB:-random_thoughts_api}"
+      POSTGRES_USER: ${RANDOM_THOUGHTS_API_POSTGRES_USER:-random_thoughts_api}
+      POSTGRES_HOST_AUTH_METHOD: md5
+      POSTGRES_PASSWORD: ${RANDOM_THOUGHTS_API_POSTGRES_PASSWORD:-banana}
+    ports:
+    # Maps to host localhost port 5432
+    - "${RANDOM_THOUGHTS_API_PGPORT:-5432}:5432"
+    # Expose Port to other containers in this network
+    expose:
+    - ${RANDOM_THOUGHTS_API_PGPORT:-5432}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

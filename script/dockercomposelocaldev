@@ -1,0 +1,156 @@
+#!/bin/sh
+set -e
+
+usage() {
+  me=$(basename "$0")
+  cat << USAGE
+Usage: ${me} [-h] <appname> [shellcommand]
+This script orchestrates switching to the required appname's local
+development environment and runs an interactive shell (overridable
+with the optional shellcommand argument) into appname.
+
+Upon exit, it restore the app's image in the original configuration.
+
+REQUIREMENTS:
+* There must be a running e2e docker compose environment
+  * Either docker compose up
+  * Or dockercomposerun script
+
+The configuration for appname's local development environment
+must be specified in required file...
+'docker-compose.<appname>.yml'
+
+OPTIONS:
+  -h:  Display Help and usage
+
+USAGE
+}
+
+err_exit() {
+  err_code=$1
+  err_msg="$2"
+  echo "Exit: ${err_msg}" 1>&2
+  exit $err_code
+}
+
+docker_compose_stop() {
+  stop_app_cmd="$1 stop $2"
+  echo "DOCKER COMPOSE STOPPING [${stop_app_cmd}]..."
+  set +e ; ${stop_app_cmd} ; set -e
+}
+
+docker_rm() {
+  rm_app_cmd="docker rm -f $1"
+  echo "REMOVING CONTAINER [${rm_app_cmd}]..."
+  set +e ; ${rm_app_cmd} ; set -e
+}
+
+docker_compose_pull() {
+  pull_cmd="$1 pull"
+  echo "DOCKER COMPOSE PULLING [${pull_cmd}]..."
+# Allow pull failure for local image
+set +e ; ${pull_cmd} ; set -e
+}
+
+docker_compose_up() {
+  # Restart with up and --no-deps to not restart dependencies and keep network
+  up_app_cmd="$1 up --no-deps $2 -d"
+  echo "DOCKER COMPOSE UP [${up_app_cmd}]..."
+  ${up_app_cmd}
+}
+
+docker_wait() {
+  # Continue if wait fails
+  wait_for=$1
+
+  printf "WAITING ON CONTAINER '${app}'"
+  counter=60
+  wait_status="PASSED"
+  until docker inspect --format='{{json .State.Health}}' ${wait_for} | grep '"Status":"healthy"' > /dev/null 2>&1  ; do
+    printf "."
+    sleep 1
+    counter=$((counter - 1))
+    if [ ${counter} -eq 0 ] ; then
+      printf "✘"
+      break
+    fi
+  done
+  echo ''
+}
+
+# --- MAIN ---
+
+# - Command line processing -
+# Handle Options
+while getopts ":h" options; do
+  case "${options}" in
+    h)
+      usage ; exit
+      ;;
+    \?)
+      usage
+      err_exit 1 "Invalid Option: -$OPTARG"
+      ;;
+  esac
+done
+shift $((OPTIND-1))
+
+# Handle Arguments
+# Required argument appname
+app=$1
+[ -n "${app}" ] || err_exit 1 "Missing appname argument"
+
+# Optional shell command argument for the app if not bash
+app_shell=${2:-bash}
+
+# - Determine Configuration -
+# REQUIREMENT: Must have a docker compose file for appname
+local_app_docker_compose_file="docker-compose.localdev.${app}.yml"
+[ -f "${local_app_docker_compose_file}" ] || err_exit 2 "Missing file:'${local_app_docker_compose_file}'"
+
+# Determine original docker compose configuration
+docker_compose_command_file=".dockercomposerun"
+if [ -f "${docker_compose_command_file}" ] ; then
+  echo "SETTING DOCKER COMPOSE COMMAND FROM [${docker_compose_command_file}]"
+  docker_compose_command=$(cat ${docker_compose_command_file})
+else
+  echo "USING DEFAULT DOCKER COMPOSE COMMAND"
+  docker_compose_command='docker compose -f docker-compose.yml'
+fi
+
+# REQUIREMENT: Docker compose environment should be up
+[ $(${docker_compose_command} ps -aq | wc -l | tr -d "[:blank:]") -eq 0 ] && err_exit 86 "No running docker compose"
+
+# - Run -
+echo "DOCKER COMPOSE ORIGINAL '${app}' CONFIG..."
+${docker_compose_command} config
+
+echo "STOPPING AND REMOVING ORIGINAL '${app}'..."
+docker_compose_stop "${docker_compose_command}" "${app}"
+docker_rm "${app}"
+
+local_app_docker_compose_command="${docker_compose_command} -f ${local_app_docker_compose_file}"
+
+echo "DOCKER COMPOSE LOCAL '${app}' CONFIG..."
+${local_app_docker_compose_command} config
+
+echo "REPLACING WITH LOCAL '${app}'..."
+docker_compose_pull "${local_app_docker_compose_command}"
+docker_compose_up "${local_app_docker_compose_command}" "${app}"
+docker_wait "${app}"
+
+local_app_docker_exec_command="docker exec -it ${app} ${app_shell}"
+echo "EXECUTING '${app_shell}' INTERACTIVELY INTO LOCAL '${app}' [${local_app_docker_exec_command}]..."
+echo 'ENTER exit TO QUIT'
+echo ''
+# Allow to fail so script does not exit
+set +e ; ${local_app_docker_exec_command} ; set -e
+
+# When done restore it like it was
+echo "STOPPING AND REMOVING LOCAL '${app}'..."
+docker_compose_stop "${local_app_docker_compose_command}" "${app}"
+docker_rm "${app}"
+
+echo "RESTORING WITH ORIGINAL '${app}'..."
+docker_compose_pull "${docker_compose_command}"
+docker_compose_up "${docker_compose_command}" "${app}"

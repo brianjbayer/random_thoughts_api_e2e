@@ -1,3 +1,7 @@
+# Custom Project Ignores
+# dockercomposerun temp file
+.dockercomposerun
+
 # Ignore bundler config.
 /.bundle
 
