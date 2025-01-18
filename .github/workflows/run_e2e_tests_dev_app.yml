@@ -1,0 +1,71 @@
+name: Run Random Thoughts API End-to-End Tests Against App Dev Image
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: "The type of runner for this workflow (Default: ubuntu-latest)"
+        required: false
+        type: string
+        default: ubuntu-latest
+      app_name:
+        description: "The name of the app under test by the e2e tests"
+        required: true
+        type: string
+      app_image:
+        description: "The app image under test by the e2e tests"
+        required: true
+        type: string
+      app_cmd:
+        description: "The command to start the app server"
+        required: true
+        type: string
+      e2e_tests_image:
+        description: "Non-default End-to-End tests image to run"
+        required: false
+        type: string
+      e2e_tests_command_prefix:
+        description: "Command line prefix to add before e2e test command"
+        required: false
+        type: string
+      workflow_ref:
+        description: "The ref of the scripts used in the workflow"
+        required: false
+        type: string
+
+jobs:
+  e2e-tests-dev-app:
+    name: End-to-End Tests Against Dev App
+    runs-on: ${{ inputs.runner }}
+
+    steps:
+      - name: Checkout e2e tests repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.workflow_ref }}
+          repository: brianjbayer/random_thoughts_api_e2e
+          path: e2e_tests
+
+      - name: Checkout app repo
+        uses: actions/checkout@v4
+        with:
+          path: ${{ inputs.app_name }}
+
+      - name: Run e2e tests
+        run: |
+          cd e2e_tests
+
+          APP_NAME=$(echo ${{ inputs.app_name }} | tr '[:lower:]' '[:upper:]')
+          echo "APP_NAME: [${APP_NAME}]"
+
+          # Must export these as they will not expand inline
+          export "${APP_NAME}_LOCAL_IMAGE=${{ inputs.app_image }}"
+          export "${APP_NAME}_CMD=${{ inputs.app_cmd }}"
+
+          if [ -n "${{ inputs.e2e_tests_image }}" ]; then
+            echo "Running e2e tests with image: [${{ inputs.e2e_tests_image }}]"
+            export E2ETESTS_IMAGE=${{ inputs.e2e_tests_image }}
+            ${{ inputs.e2e_tests_command_prefix }} ./script/dockercomposerun -l ${{ inputs.app_name }} -c
+          else
+            ${{ inputs.e2e_tests_command_prefix }} ./script/dockercomposerun -l ${{ inputs.app_name }}
+          fi
