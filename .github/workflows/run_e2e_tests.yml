@@ -8,6 +8,14 @@ on:
         required: false
         type: string
         default: ubuntu-latest
+      app_name:
+        description: "The name of the app under test by the e2e tests"
+        required: false
+        type: string
+      app_image:
+        description: "The app image under test by the e2e tests"
+        required: false
+        type: string
       e2e_tests_image:
         description: "Non-default End-to-End tests image to run"
         required: false
@@ -16,12 +24,10 @@ on:
         description: "Command line prefix to add before e2e test command"
         required: false
         type: string
-      workflow_checkout_ref:
-        description: "The ref to checkout for the scripts used in the workflow"
+      workflow_ref:
+        description: "The ref of the scripts used in the workflow"
         required: false
         type: string
-        # NOTE: Version the scripts for this workflow here
-        default: v0.1
 
 jobs:
   e2e-tests:
@@ -32,12 +38,25 @@ jobs:
       - name: Checkout e2e tests repo
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.workflow_checkout_ref }}
+          ref: ${{ inputs.workflow_ref }}
           repository: brianjbayer/random_thoughts_api_e2e
-      - name: dockercomposerun e2e tests image
-        if: ${{ inputs.e2e_tests_image }}
-        run: "${{ inputs.e2e_tests_command_prefix }} E2ETESTS_IMAGE=${{ inputs.e2e_tests_image }} ./script/dockercomposerun -c"
 
-      - name: dockercomposerun e2e tests
-        if: ${{ ! inputs.e2e_tests_image }}
-        run: "${{ inputs.e2e_tests_command_prefix }} ./script/dockercomposerun"
+      - name: Run e2e tests
+        run: |
+          if [ -n "${{ inputs.app_name }}" ]; then
+            app_msg="app: [${{ inputs.app_name }}] and image: [${{ inputs.app_image }}]"
+            echo "Running e2e tests with ${app_msg}"
+            APP_NAME=$(echo ${{ inputs.app_name }} | tr '[:lower:]' '[:upper:]')
+            echo "APP_NAME: [${APP_NAME}]"
+
+            # Must export, will not expand inline
+            export "${APP_NAME}_IMAGE=${{ inputs.app_image }}"
+          fi
+
+          if [ -n "${{ inputs.e2e_tests_image }}" ]; then
+            echo "Running e2e tests image: [${{ inputs.e2e_tests_image }}]"
+            export E2ETESTS_IMAGE=${{ inputs.e2e_tests_image }}
+            ${{ inputs.e2e_tests_command_prefix }} ./script/dockercomposerun -c
+          else
+            ${{ inputs.e2e_tests_command_prefix }} ./script/dockercomposerun
+          fi
