@@ -12,6 +12,7 @@ This script orchestrates a 'docker compose run' of all apps under test
 
 OPTIONS: (in override order)
   -o:         Run Only the e2etests service with no E2E environment
+  -l          Run specified appname localdev environment
   -d:         Run the docker-compose e2etests Dev environment
   -c:         Run the docker-compose CI environment with E2ETESTS_IMAGE (required)
   -h:         Display Help and usage
@@ -27,7 +28,7 @@ err_exit() {
 }
 
 # Handle options
-while getopts ":cdho" options; do
+while getopts ":cdhol:" options; do
   case "${options}" in
     c)
       ci=1
@@ -40,6 +41,9 @@ while getopts ":cdho" options; do
       ;;
     o)
       tests_only=1
+      ;;
+    l)
+      appname="${OPTARG}"
       ;;
     \?)
       usage
@@ -63,6 +67,7 @@ else
   docker_compose_command="${docker_compose_command} -f docker-compose.tests-dependency.yml"
 fi
 
+[ -n "${appname}" ] && docker_compose_command="${docker_compose_command} -f docker-compose.localdev.${appname}.yml"
 [ -n "${ci}" ] && docker_compose_command="${docker_compose_command} -f docker-compose.ci.yml "
 [ -n "${devenv}" ] && docker_compose_command="${docker_compose_command} -f docker-compose.dev.yml "
 
